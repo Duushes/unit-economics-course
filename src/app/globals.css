@@ -1,26 +1,102 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-border: var(--border);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-success: var(--success);
+  --color-error: var(--error);
+  --color-warning: var(--warning);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --background: #fafafa;
+  --foreground: #171717;
+  --muted: #f4f4f5;
+  --muted-foreground: #525252;
+  --accent: #0d9488;
+  --accent-light: #ccfbf1;
+  --border: #e5e5e5;
+  --card: #ffffff;
+  --card-hover: #f4fbfa;
+  --success: #16a34a;
+  --error: #dc2626;
+  --warning: #d97706;
+}
+
+.dark {
+  --background: #1a1d1d;
+  --foreground: #ececef;
+  --muted: #262a2a;
+  --muted-foreground: #9ba5a3;
+  --accent: #2dd4bf;
+  --accent-light: #103a37;
+  --border: #33393a;
+  --card: #212525;
+  --card-hover: #29302f;
+  --success: #4ade80;
+  --error: #f87171;
+  --warning: #fbbf24;
+}
+
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
   }
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   background: var(--background);
+  background-image: radial-gradient(circle, var(--border) 0.8px, transparent 0.8px);
+  background-size: 24px 24px;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.dark body {
+  background-image: radial-gradient(circle, var(--border) 0.5px, transparent 0.5px);
+}
+
+::selection {
+  background-color: var(--accent);
+  color: white;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }
