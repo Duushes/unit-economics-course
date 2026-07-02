@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useCourse } from '@/context/CourseContext';
+import AuthPanel from './AuthPanel';
 
 const fade = {
   hidden: { opacity: 0, y: 14 },
@@ -71,6 +72,8 @@ export default function Hub() {
           Диагностика → теория → тренажёр. Прогресс сохраняется.
         </p>
       </motion.div>
+
+      <AuthPanel />
 
       <div className="grid sm:grid-cols-2 gap-3">
         {tiles.map((t, i) => (

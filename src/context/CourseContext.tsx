@@ -1,19 +1,14 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { supabase, isAuthEnabled } from '@/lib/supabase';
+import { pull, push } from '@/lib/sync';
+import { newSalt } from '@/lib/crypto';
 
-export type View =
-  | 'hub'
-  | 'course'
-  | 'diagnostic'
-  | 'trainer'
-  | 'tinder'
-  | 'stats'
-  | 'cheatsheet';
+export type View = 'hub' | 'course' | 'diagnostic' | 'trainer' | 'tinder' | 'stats' | 'cheatsheet';
 
-// Одна попытка в тренажёре/диагностике — для статистики.
 export interface Attempt {
-  topic: string; // тег темы (метрика/раздел)
+  topic: string;
   correct: boolean;
   ts: number;
 }
@@ -27,7 +22,22 @@ interface CourseState {
   theme: 'light' | 'dark';
   userAnswers: Record<string, string>;
   attempts: Attempt[];
-  diagnostic: Record<string, 'know' | 'dont'> | null; // тема → знает/нет
+  diagnostic: Record<string, 'know' | 'dont'> | null;
+}
+
+interface AuthUser {
+  id: string;
+  email: string;
+}
+
+interface CloudShape {
+  currentModule: number;
+  completedModules: number[];
+  moduleScores: Record<number, number>;
+  examScore: number | null;
+  userAnswers: Record<string, string>;
+  attempts: Attempt[];
+  diagnostic: Record<string, 'know' | 'dont'> | null;
 }
 
 interface CourseContextType extends CourseState {
@@ -44,6 +54,13 @@ interface CourseContextType extends CourseState {
   progress: number;
   totalModules: number;
   examPassed: boolean;
+  // auth
+  authEnabled: boolean;
+  user: AuthUser | null;
+  authError: string | null;
+  signUp: (email: string, password: string) => Promise<boolean>;
+  signIn: (email: string, password: string) => Promise<boolean>;
+  signOut: () => Promise<void>;
 }
 
 const CourseContext = createContext<CourseContextType | null>(null);
@@ -52,48 +69,48 @@ const TOTAL_MODULES = 9;
 const EXAM_PASS = 11;
 const STORAGE_KEY = 'uecon-course-state';
 const SCROLL_KEY = 'uecon-scroll-positions';
+const PW_KEY = 'uecon-pw';
+const SALT_KEY = 'uecon-salt';
 
 function loadState(): Partial<CourseState> {
   if (typeof window === 'undefined') return {};
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (!saved) return {};
-    const parsed = JSON.parse(saved);
+    const p = JSON.parse(saved);
     return {
-      view: parsed.view ?? 'hub',
-      currentModule: parsed.currentModule ?? 0,
-      completedModules: new Set(
-        (parsed.completedModules ?? []).filter((id: number) => id >= 1 && id <= TOTAL_MODULES)
-      ),
-      moduleScores: parsed.moduleScores ?? {},
-      examScore: parsed.examScore ?? null,
-      userAnswers: parsed.userAnswers ?? {},
-      attempts: parsed.attempts ?? [],
-      diagnostic: parsed.diagnostic ?? null,
+      view: p.view ?? 'hub',
+      currentModule: p.currentModule ?? 0,
+      completedModules: new Set((p.completedModules ?? []).filter((id: number) => id >= 1 && id <= TOTAL_MODULES)),
+      moduleScores: p.moduleScores ?? {},
+      examScore: p.examScore ?? null,
+      userAnswers: p.userAnswers ?? {},
+      attempts: p.attempts ?? [],
+      diagnostic: p.diagnostic ?? null,
     };
   } catch {
     return {};
   }
 }
 
-function saveState(state: CourseState) {
+function saveState(s: CourseState) {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        view: state.view,
-        currentModule: state.currentModule,
-        completedModules: Array.from(state.completedModules),
-        moduleScores: state.moduleScores,
-        examScore: state.examScore,
-        userAnswers: state.userAnswers,
-        attempts: state.attempts.slice(-2000), // кап на размер
-        diagnostic: state.diagnostic,
+        view: s.view,
+        currentModule: s.currentModule,
+        completedModules: Array.from(s.completedModules),
+        moduleScores: s.moduleScores,
+        examScore: s.examScore,
+        userAnswers: s.userAnswers,
+        attempts: s.attempts.slice(-2000),
+        diagnostic: s.diagnostic,
       })
     );
   } catch {
-    // ignore
+    /* ignore */
   }
 }
 
@@ -102,6 +119,32 @@ function getInitialTheme(): 'light' | 'dark' {
   const saved = localStorage.getItem('uecon-theme');
   if (saved === 'dark' || saved === 'light') return saved;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function toCloud(s: CourseState): CloudShape {
+  return {
+    currentModule: s.currentModule,
+    completedModules: Array.from(s.completedModules),
+    moduleScores: s.moduleScores,
+    examScore: s.examScore,
+    userAnswers: s.userAnswers,
+    attempts: s.attempts,
+    diagnostic: s.diagnostic,
+  };
+}
+
+function mergeCloud(local: CourseState, cloud: CloudShape): CourseState {
+  const attemptsMap = new Map<string, Attempt>();
+  for (const a of [...cloud.attempts, ...local.attempts]) attemptsMap.set(`${a.ts}-${a.topic}`, a);
+  return {
+    ...local,
+    completedModules: new Set([...local.completedModules, ...cloud.completedModules]),
+    moduleScores: { ...cloud.moduleScores, ...local.moduleScores },
+    examScore: Math.max(local.examScore ?? -1, cloud.examScore ?? -1) < 0 ? null : Math.max(local.examScore ?? -1, cloud.examScore ?? -1),
+    userAnswers: { ...cloud.userAnswers, ...local.userAnswers },
+    attempts: [...attemptsMap.values()].sort((a, b) => a.ts - b.ts),
+    diagnostic: local.diagnostic ?? cloud.diagnostic,
+  };
 }
 
 export function CourseProvider({ children }: { children: ReactNode }) {
@@ -116,8 +159,10 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     attempts: [],
     diagnostic: null,
   });
-
   const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const pushTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     const saved = loadState();
@@ -135,6 +180,13 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     });
     document.documentElement.classList.toggle('dark', theme === 'dark');
     setMounted(true);
+
+    if (supabase) {
+      supabase.auth.getSession().then(({ data }) => {
+        const u = data.session?.user;
+        if (u) setUser({ id: u.id, email: u.email ?? '' });
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -142,8 +194,23 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     saveState(state);
   }, [state, mounted]);
 
+  // Облачный синк (debounced), когда есть пользователь и ключ-пароль в сессии.
+  useEffect(() => {
+    if (!mounted || !user || !supabase) return;
+    const pw = sessionStorage.getItem(PW_KEY);
+    const salt = sessionStorage.getItem(SALT_KEY);
+    if (!pw || !salt) return;
+    if (pushTimer.current) clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(() => {
+      push(user.id, toCloud(state), pw, salt).catch(() => {});
+    }, 800);
+    return () => {
+      if (pushTimer.current) clearTimeout(pushTimer.current);
+    };
+  }, [state, user, mounted]);
+
   const setView = useCallback((view: View) => {
-    setState((prev) => ({ ...prev, view }));
+    setState((p) => ({ ...p, view }));
     if (typeof window !== 'undefined') window.scrollTo(0, 0);
   }, []);
 
@@ -161,24 +228,15 @@ export function CourseProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const completeModule = useCallback((module: number) => {
-    setState((prev) => ({
-      ...prev,
-      completedModules: new Set([...prev.completedModules, module]),
-    }));
+    setState((p) => ({ ...p, completedModules: new Set([...p.completedModules, module]) }));
   }, []);
-
   const setModuleScore = useCallback((module: number, score: number) => {
-    setState((prev) => ({ ...prev, moduleScores: { ...prev.moduleScores, [module]: score } }));
+    setState((p) => ({ ...p, moduleScores: { ...p.moduleScores, [module]: score } }));
   }, []);
-
-  const setExamScore = useCallback((score: number) => {
-    setState((prev) => ({ ...prev, examScore: score }));
-  }, []);
-
+  const setExamScore = useCallback((score: number) => setState((p) => ({ ...p, examScore: score })), []);
   const saveAnswer = useCallback((key: string, value: unknown) => {
-    setState((prev) => ({ ...prev, userAnswers: { ...prev.userAnswers, [key]: JSON.stringify(value) } }));
+    setState((p) => ({ ...p, userAnswers: { ...p.userAnswers, [key]: JSON.stringify(value) } }));
   }, []);
-
   const getAnswer = useCallback(
     <T,>(key: string): T | undefined => {
       const raw = state.userAnswers[key];
@@ -191,25 +249,70 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     },
     [state.userAnswers]
   );
-
   const recordAttempt = useCallback((topic: string, correct: boolean) => {
-    setState((prev) => ({
-      ...prev,
-      attempts: [...prev.attempts, { topic, correct, ts: Date.now() }],
-    }));
+    setState((p) => ({ ...p, attempts: [...p.attempts, { topic, correct, ts: Date.now() }] }));
   }, []);
-
   const setDiagnostic = useCallback((result: Record<string, 'know' | 'dont'>) => {
-    setState((prev) => ({ ...prev, diagnostic: result }));
+    setState((p) => ({ ...p, diagnostic: result }));
   }, []);
-
   const toggleTheme = useCallback(() => {
-    setState((prev) => {
-      const next = prev.theme === 'light' ? 'dark' : 'light';
+    setState((p) => {
+      const next = p.theme === 'light' ? 'dark' : 'light';
       document.documentElement.classList.toggle('dark', next === 'dark');
       localStorage.setItem('uecon-theme', next);
-      return { ...prev, theme: next };
+      return { ...p, theme: next };
     });
+  }, []);
+
+  const signUp = useCallback(async (email: string, password: string): Promise<boolean> => {
+    setAuthError(null);
+    if (!supabase) return false;
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      setAuthError(error.message);
+      return false;
+    }
+    const u = data.user;
+    if (!u) {
+      setAuthError('Подтвердите email по ссылке из письма, затем войдите.');
+      return false;
+    }
+    const salt = newSalt();
+    sessionStorage.setItem(PW_KEY, password);
+    sessionStorage.setItem(SALT_KEY, salt);
+    setUser({ id: u.id, email: u.email ?? email });
+    return true;
+  }, []);
+
+  const signIn = useCallback(
+    async (email: string, password: string): Promise<boolean> => {
+      setAuthError(null);
+      if (!supabase) return false;
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error || !data.user) {
+        setAuthError(error?.message ?? 'Не удалось войти');
+        return false;
+      }
+      const u = data.user;
+      sessionStorage.setItem(PW_KEY, password);
+      // подтянуть облачный прогресс и слить с локальным
+      const cloud = await pull<CloudShape>(u.id, password);
+      if (cloud) {
+        setState((prev) => mergeCloud(prev, cloud));
+      }
+      // сохранить salt: если строки не было, создаём новый
+      if (!sessionStorage.getItem(SALT_KEY)) sessionStorage.setItem(SALT_KEY, newSalt());
+      setUser({ id: u.id, email: u.email ?? email });
+      return true;
+    },
+    []
+  );
+
+  const signOut = useCallback(async () => {
+    if (supabase) await supabase.auth.signOut();
+    sessionStorage.removeItem(PW_KEY);
+    sessionStorage.removeItem(SALT_KEY);
+    setUser(null);
   }, []);
 
   const progress = (state.completedModules.size / TOTAL_MODULES) * 100;
@@ -232,6 +335,12 @@ export function CourseProvider({ children }: { children: ReactNode }) {
         progress,
         totalModules: TOTAL_MODULES,
         examPassed,
+        authEnabled: isAuthEnabled,
+        user,
+        authError,
+        signUp,
+        signIn,
+        signOut,
       }}
     >
       {mounted ? children : <div style={{ visibility: 'hidden' }}>{children}</div>}
