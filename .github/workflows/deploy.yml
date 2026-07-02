@@ -12,7 +12,9 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  # Отменяем устаревшие прогоны в очереди: в Pages всегда едет последний коммит,
+  # быстрые пуши подряд не копятся в очередь и не падают по 10-мин таймауту деплоя.
+  cancel-in-progress: true
 
 jobs:
   build:
