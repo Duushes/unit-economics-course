@@ -21,6 +21,10 @@ export type ContentBlock =
   | { kind: 'case'; tag: CaseTag; title?: string; md: string }
   // Встроенный калькулятор: режим A/B + id пресета.
   | { kind: 'calc'; mode: 'A' | 'B'; presetId: string; title?: string }
+  // SVG-диаграмма.
+  | { kind: 'diagram'; variant: 'funnel' | 'tree' | 'waterfall' | 'sensitivity'; caption?: string }
+  // Мнемоника / аналогия «как запомнить».
+  | { kind: 'mnemonic'; text: string }
   // Интерактив (маппится на компоненты Quiz/DragDrop/InputExercise/ScenarioCard).
   | { kind: 'quiz'; question: string; options: QuizOptionData[] }
   | {

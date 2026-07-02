@@ -13,7 +13,8 @@ import Hub from './Hub';
 import DiagnosticView from './DiagnosticView';
 import TrainerView from './TrainerView';
 import TinderView from './TinderView';
-import ComingSoon from './ComingSoon';
+import StatsView from './StatsView';
+import CheatsheetView from './CheatsheetView';
 import { getModule, EXAM_MODULE_INDEX } from '@/content';
 
 const SCROLL_KEY = 'uecon-scroll-positions';
@@ -62,9 +63,9 @@ function CourseContent() {
   } else if (view === 'tinder') {
     content = <TinderView />;
   } else if (view === 'stats') {
-    content = <ComingSoon title="Статистика" note="Твой прогресс и слабые темы — скоро." />;
+    content = <StatsView />;
   } else if (view === 'cheatsheet') {
-    content = <ComingSoon title="Шпаргалка" note="Выжимка формул и правил — скоро." />;
+    content = <CheatsheetView />;
   }
 
   return (

@@ -7,12 +7,14 @@ import DragDrop from './DragDrop';
 import InputExercise from './InputExercise';
 import ScenarioCard from './ScenarioCard';
 import UnitEconCalculator from './calculator/UnitEconCalculator';
+import Diagram from './Diagram';
+import MetricTag from './MetricTag';
 import type { ContentBlock, Module } from '@/content/types';
 
 // --- мини-разметка: **жирный**, `код` ---
 function renderInline(text: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
-  const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+  const regex = /(\*\*[^*]+\*\*|`[^`]+`|\[\[[^\]]+\]\])/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let k = 0;
@@ -21,6 +23,8 @@ function renderInline(text: string): React.ReactNode[] {
     const tok = m[0];
     if (tok.startsWith('**')) {
       nodes.push(<strong key={k++}>{tok.slice(2, -2)}</strong>);
+    } else if (tok.startsWith('[[')) {
+      nodes.push(<MetricTag key={k++} term={tok.slice(2, -2)} />);
     } else {
       nodes.push(
         <code key={k++} className="px-1 py-0.5 rounded bg-muted text-[0.85em] font-mono">
@@ -141,6 +145,25 @@ function Block({ block }: { block: ContentBlock }) {
 
     case 'calc':
       return <UnitEconCalculator mode={block.mode} preset={block.presetId} title={block.title} />;
+
+    case 'diagram':
+      return (
+        <div className="my-5">
+          <Diagram variant={block.variant} />
+          {block.caption && <p className="text-xs text-muted-foreground mt-1.5 text-center">{block.caption}</p>}
+        </div>
+      );
+
+    case 'mnemonic':
+      return (
+        <div className="my-5 rounded-xl border border-warning/40 bg-warning/5 p-4 flex gap-3">
+          <span className="text-xl leading-none">💡</span>
+          <div className="text-sm flex-1">
+            <div className="text-[11px] font-medium uppercase tracking-wider text-warning mb-1">Как запомнить</div>
+            {renderText(block.text)}
+          </div>
+        </div>
+      );
 
     case 'quiz':
       return <Quiz question={block.question} options={block.options} />;
