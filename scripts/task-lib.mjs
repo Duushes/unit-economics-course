@@ -42,7 +42,6 @@ function makeOptions(rng, correct, structural) {
     if (opts.length === 4) break;
   }
   while (opts.length < 4) opts.push(round2(correct * (1 + opts.length * 0.1)));
-  // перемешать (seeded)
   for (let i = opts.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [opts[i], opts[j]] = [opts[j], opts[i]];
@@ -50,7 +49,7 @@ function makeOptions(rng, correct, structural) {
   return opts;
 }
 
-// Типы расчётных заданий: формула ответа + структурный дистрактор + текст.
+// Типы расчётных заданий: формула ответа + структурный дистрактор + текст + подсказки L1→L2→L3.
 const CALC_TYPES = [
   {
     type: 'CAC', topic: 'CAC',
@@ -62,6 +61,7 @@ const CALC_TYPES = [
         prompt: `${biz}: стоимость привлечения в поток CPA = ${cpa} ₽, конверсия в первую покупку C1 = ${c1 * 100}%. Чему равен CAC (привлечение платящего)?`,
         correct, unit: '₽', structural: round2(cpa * c1),
         explain: `CAC = CPA / C1 = ${cpa} / ${c1} = ${correct} ₽`,
+        hints: ['Платящий обходится дороже привлечённого в поток — потому что платят не все. Во сколько раз?', 'CAC = CPA / C1', `CAC = ${cpa} / ${c1}`],
       };
     },
   },
@@ -75,6 +75,7 @@ const CALC_TYPES = [
         prompt: `${biz}: ARPPU (доход с платящего) = ${arppu} ₽, конверсия C1 = ${c1 * 100}%. Чему равен ARPU (на привлечённого)?`,
         correct, unit: '₽', structural: round2(arppu / c1),
         explain: `ARPU = ARPPU × C1 = ${arppu} × ${c1} = ${correct} ₽`,
+        hints: ['Платят не все привлечённые — доход на привлечённого меньше, чем на платящего.', 'ARPU = ARPPU × C1', `ARPU = ${arppu} × ${c1}`],
       };
     },
   },
@@ -86,8 +87,9 @@ const CALC_TYPES = [
       const correct = round2(cost / units);
       return {
         prompt: `${biz}: суммарные затраты за смену = ${cost} ₽, выполнено заказов = ${units}. Чему равна себестоимость заказа (CPO)?`,
-        correct, unit: '₽', structural: round2(units / cost * 1000),
+        correct, unit: '₽', structural: round2((units / cost) * 1000),
         explain: `CPO = затраты / число заказов = ${cost} / ${units} = ${correct} ₽`,
+        hints: ['Себестоимость одного заказа — это общие затраты, размазанные по всем заказам.', 'CPO = затраты за смену / число заказов', `CPO = ${cost} / ${units}`],
       };
     },
   },
@@ -101,6 +103,7 @@ const CALC_TYPES = [
         prompt: `${biz}: цена продажи = ${price} ₽, переменные косты = ${varCost} ₽. Чему равна маржинальная прибыль на юнит (contribution margin)?`,
         correct, unit: '₽', structural: round2(price + varCost),
         explain: `CM на юнит = цена − переменные косты = ${price} − ${varCost} = ${correct} ₽`,
+        hints: ['Маржа — это то, что остаётся с продажи после переменных костов (без учёта постоянных).', 'CM = цена − переменные косты', `CM = ${price} − ${varCost}`],
       };
     },
   },
@@ -115,6 +118,7 @@ const CALC_TYPES = [
         prompt: `${biz}: поток UA = ${ua}, ARPU = ${arpu} ₽, CPA = ${cpa} ₽. Чему равна contribution margin на поток?`,
         correct, unit: '₽', structural: round2(ua * (arpu + cpa)),
         explain: `CM = UA × (ARPU − CPA) = ${ua} × (${arpu} − ${cpa}) = ${correct} ₽`,
+        hints: ['Считаем на весь поток: вклад одного привлечённого умножаем на их число.', 'CM = UA × (ARPU − CPA)', `CM = ${ua} × (${arpu} − ${cpa})`],
       };
     },
   },
@@ -128,6 +132,7 @@ const CALC_TYPES = [
         prompt: `${biz}: клиент приносит ${monthly} ₽ маржи в месяц и остаётся в среднем ${months} мес. Чему равен LTV?`,
         correct, unit: '₽', structural: round2(monthly + months),
         explain: `LTV = маржа/мес × срок жизни = ${monthly} × ${months} = ${correct} ₽`,
+        hints: ['LTV — сколько маржи клиент принесёт за всю свою жизнь в продукте.', 'LTV = маржа в месяц × срок жизни', `LTV = ${monthly} × ${months}`],
       };
     },
   },
@@ -139,8 +144,9 @@ const CALC_TYPES = [
       const correct = round2(invest / monthly);
       return {
         prompt: `${biz}: на привлечение/актив потрачено ${invest} ₽, юнит приносит ${monthly} ₽ маржи в месяц. За сколько месяцев окупится?`,
-        correct, unit: 'мес', structural: round2(invest * monthly / 1000),
+        correct, unit: 'мес', structural: round2((invest * monthly) / 1000),
         explain: `Payback = вложение / маржа в месяц = ${invest} / ${monthly} = ${correct} мес`,
+        hints: ['Окупаемость — за сколько периодов маржа вернёт вложение.', 'Payback = вложение / маржа за период', `Payback = ${invest} / ${monthly}`],
       };
     },
   },
@@ -152,8 +158,9 @@ const CALC_TYPES = [
       const correct = round2(fixed / cmUnit);
       return {
         prompt: `${biz}: постоянные косты = ${fixed} ₽, маржа на юнит = ${cmUnit} ₽. Сколько юнитов нужно продать для выхода в ноль?`,
-        correct, unit: 'юнитов', structural: round2(fixed * cmUnit / 1000),
+        correct, unit: 'юнитов', structural: round2((fixed * cmUnit) / 1000),
         explain: `Break-even = постоянные косты / маржа на юнит = ${fixed} / ${cmUnit} = ${correct} юнитов`,
+        hints: ['Каждый юнит приносит маржу — сколько их нужно, чтобы покрыть постоянные косты?', 'Break-even = постоянные косты / маржа на юнит', `= ${fixed} / ${cmUnit}`],
       };
     },
   },
@@ -167,6 +174,7 @@ const CALC_TYPES = [
         prompt: `${biz}: выручка = ${revenue} ₽, себестоимость = ${cost} ₽. Чему равна маржинальность в %?`,
         correct, unit: '%', structural: round2((cost / revenue) * 100),
         explain: `Маржа % = (выручка − косты) / выручка = (${revenue} − ${cost}) / ${revenue} = ${correct}%`,
+        hints: ['Маржинальность — какая доля выручки остаётся после себестоимости.', 'Маржа % = (выручка − косты) / выручка × 100', `= (${revenue} − ${cost}) / ${revenue} × 100`],
       };
     },
   },
@@ -180,6 +188,7 @@ const CALC_TYPES = [
         prompt: `${biz}: LTV = ${ltv} ₽, CAC = ${cac} ₽. Чему равно отношение LTV/CAC?`,
         correct, unit: '', structural: round2(cac / ltv),
         explain: `LTV/CAC = ${ltv} / ${cac} = ${correct}`,
+        hints: ['Во сколько раз клиент приносит больше, чем стоило его привлечь.', 'LTV/CAC = LTV / CAC', `= ${ltv} / ${cac}`],
       };
     },
   },
@@ -193,6 +202,7 @@ const CALC_TYPES = [
         prompt: `${biz}: contribution margin = ${cm} ₽, расходы на маркетинг = ${spend} ₽. Чему равен ROMI в %?`,
         correct, unit: '%', structural: round2((spend / cm) * 100),
         explain: `ROMI = CM / маркетинг = ${cm} / ${spend} = ${correct}%`,
+        hints: ['Отдача маркетинга: сколько маржи на вложенный в него рубль.', 'ROMI = CM / маркетинг × 100', `= ${cm} / ${spend} × 100`],
       };
     },
   },
@@ -207,6 +217,7 @@ const CALC_TYPES = [
         prompt: `${biz}: средний чек AvP = ${avp} ₽, COGS = ${cogs} ₽, число оплат APC = ${apc}. Чему равен доход с клиента (без 1sCOGS)?`,
         correct, unit: '₽', structural: round2(avp * apc),
         explain: `ARPC = (AvP − COGS) × APC = (${avp} − ${cogs}) × ${apc} = ${correct} ₽`,
+        hints: ['Сначала маржа с одной покупки, потом умножь на число покупок клиента.', 'ARPC = (AvP − COGS) × APC', `= (${avp} − ${cogs}) × ${apc}`],
       };
     },
   },
@@ -231,6 +242,7 @@ export function generateCalcTasks(count, seed = 12345) {
       unit: g.unit,
       options,
       explain: g.explain,
+      hints: g.hints,
       difficulty: g.correct > 10000 ? 3 : g.correct > 1000 ? 2 : 1,
     });
     i++;
@@ -274,7 +286,7 @@ export function generateTinderCards(count, seed = 54321) {
   let ci = 0;
   let di = 0;
   while (cards.length < count) {
-    const useDef = cards.length % 5 === 0; // ~20% определения
+    const useDef = cards.length % 5 === 0;
     if (useDef) {
       const d = DEFINITIONS[di % DEFINITIONS.length];
       di++;

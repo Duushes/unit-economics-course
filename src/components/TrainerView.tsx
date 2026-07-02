@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { useCourse } from '@/context/CourseContext';
 import type { CalcTask } from '@/content/types';
 import { fmtNum } from './calculator/format';
+import { metricize } from './MetricTag';
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -22,6 +23,7 @@ export default function TrainerView() {
   const [topic, setTopic] = useState('all');
   const [i, setI] = useState(0);
   const [sel, setSel] = useState<number | null>(null);
+  const [hintLevel, setHintLevel] = useState(0);
   const [right, setRight] = useState(0);
   const [total, setTotal] = useState(0);
 
@@ -47,6 +49,7 @@ export default function TrainerView() {
 
   const next = () => {
     setSel(null);
+    setHintLevel(0);
     setI((x) => x + 1);
   };
 
@@ -90,7 +93,27 @@ export default function TrainerView() {
           <span className="text-[11px] px-2 py-0.5 rounded-md bg-accent/10 text-accent font-medium">{task.topic}</span>
           <span className="text-[11px] text-muted-foreground">{task.business}</span>
         </div>
-        <p className="text-base font-medium mb-5 leading-relaxed">{task.prompt}</p>
+        <p className="text-base font-medium mb-4 leading-relaxed">{metricize(task.prompt)}</p>
+
+        {hintLevel > 0 && (
+          <div className="mb-4 space-y-2">
+            {task.hints.slice(0, hintLevel).map((h, idx) => (
+              <div key={idx} className="flex gap-2 text-sm rounded-lg bg-accent/5 border border-accent/20 p-2.5">
+                <span className="text-[11px] font-bold text-accent mt-0.5">L{idx + 1}</span>
+                <span className="flex-1">{metricize(h)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {sel === null && hintLevel < 3 && (
+          <button
+            onClick={() => setHintLevel((l) => l + 1)}
+            className="mb-4 text-xs text-accent hover:underline underline-offset-2 cursor-pointer"
+          >
+            💡 {hintLevel === 0 ? 'Показать подсказку' : `Ещё подсказка (L${hintLevel + 1} из 3)`}
+          </button>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           {task.options.map((opt) => {

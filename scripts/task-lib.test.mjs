@@ -25,6 +25,13 @@ describe('calc task generator', () => {
     }
   });
 
+  it('every task has 3 progressive hints (L1→L2→L3)', () => {
+    for (const t of tasks) {
+      expect(t.hints).toHaveLength(3);
+      for (const h of t.hints) expect(h.length).toBeGreaterThan(2);
+    }
+  });
+
   it('is deterministic across runs', () => {
     const a = generateCalcTasks(20);
     const b = generateCalcTasks(20);

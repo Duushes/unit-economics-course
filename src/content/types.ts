@@ -86,6 +86,7 @@ export interface CalcTask {
   unit: string;
   options: number[];
   explain: string;
+  hints: string[]; // L1 → L2 → L3 (намёк → формула → формула с числами)
   difficulty: number;
 }
 
