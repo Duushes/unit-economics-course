@@ -65,6 +65,18 @@ interface CourseContextType extends CourseState {
 
 const CourseContext = createContext<CourseContextType | null>(null);
 
+// Человеческие тексты для типовых ошибок Supabase (в UI логин, не почта).
+function ruAuthError(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes('invalid login credentials')) return 'Неверный логин или пароль.';
+  if (m.includes('already registered') || m.includes('already been registered')) return 'Такой логин уже занят — попробуй войти.';
+  if (m.includes('password') && m.includes('6')) return 'Пароль — минимум 6 символов.';
+  if (m.includes('is invalid') && m.includes('email')) return 'Такой логин не подходит — попробуй другой.';
+  if (m.includes('rate limit') || m.includes('too many')) return 'Слишком много попыток — подожди минуту.';
+  if (m.includes('fetch') || m.includes('network')) return 'Нет соединения — попробуй ещё раз.';
+  return msg;
+}
+
 const TOTAL_MODULES = 9;
 const EXAM_PASS = 11;
 const STORAGE_KEY = 'uecon-course-state';
@@ -269,12 +281,14 @@ export function CourseProvider({ children }: { children: ReactNode }) {
     if (!supabase) return false;
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) {
-      setAuthError(error.message);
+      setAuthError(ruAuthError(error.message));
       return false;
     }
+    // Без session синк невозможен (RLS отвергнет запись): при включённом
+    // «Confirm email» Supabase возвращает user, но session = null.
     const u = data.user;
-    if (!u) {
-      setAuthError('Подтвердите email по ссылке из письма, затем войдите.');
+    if (!u || !data.session) {
+      setAuthError('Аккаунт создан, но вход не выполнен — попробуй войти.');
       return false;
     }
     const salt = newSalt();
@@ -290,7 +304,7 @@ export function CourseProvider({ children }: { children: ReactNode }) {
       if (!supabase) return false;
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error || !data.user) {
-        setAuthError(error?.message ?? 'Не удалось войти');
+        setAuthError(error ? ruAuthError(error.message) : 'Не удалось войти.');
         return false;
       }
       const u = data.user;
