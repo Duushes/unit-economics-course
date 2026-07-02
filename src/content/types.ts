@@ -70,3 +70,25 @@ export interface ExamQuestion {
   question: string;
   options: QuizOptionData[];
 }
+
+// Задания тренажёра (генерируются scripts/task-lib.mjs → public/trainer/*.json).
+export interface CalcTask {
+  id: string;
+  business: string;
+  type: string;
+  topic: string;
+  prompt: string;
+  correct: number;
+  unit: string;
+  options: number[];
+  explain: string;
+  difficulty: number;
+}
+
+export interface TinderCard {
+  id: string;
+  statement: string;
+  isCorrect: boolean;
+  topic: string;
+  explain: string;
+}

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/gen-sw.mjs",
+    "build": "node scripts/gen-tasks.mjs && next build && node scripts/gen-sw.mjs",
+    "gen:tasks": "node scripts/gen-tasks.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",

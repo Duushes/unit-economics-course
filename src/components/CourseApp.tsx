@@ -11,6 +11,8 @@ import ModuleRenderer from './ModuleRenderer';
 import ExamView from './ExamView';
 import Hub from './Hub';
 import DiagnosticView from './DiagnosticView';
+import TrainerView from './TrainerView';
+import TinderView from './TinderView';
 import ComingSoon from './ComingSoon';
 import { getModule, EXAM_MODULE_INDEX } from '@/content';
 
@@ -56,9 +58,9 @@ function CourseContent() {
   } else if (view === 'diagnostic') {
     content = <DiagnosticView />;
   } else if (view === 'trainer') {
-    content = <ComingSoon title="Тренажёр" note="Нарешка задач по разным бизнесам — скоро." />;
+    content = <TrainerView />;
   } else if (view === 'tinder') {
-    content = <ComingSoon title="Тиндер" note="Верно / неверно на скорость — скоро." />;
+    content = <TinderView />;
   } else if (view === 'stats') {
     content = <ComingSoon title="Статистика" note="Твой прогресс и слабые темы — скоро." />;
   } else if (view === 'cheatsheet') {
