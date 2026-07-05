@@ -101,7 +101,7 @@ export default function TinderView() {
   return (
     <div className="max-w-2xl mx-auto px-6 py-10">
       <h1 className="text-xl font-bold mb-1">Тиндер · верно или неверно</h1>
-      <p className="text-muted-foreground text-sm mb-8">Свайп вправо — «Верно», влево — «Неверно». {SESSION} карточек в раунде.</p>
+      <p className="text-muted-foreground text-sm mb-8">Определения и смысл метрик юнит-экономики. Свайп вправо — «Верно», влево — «Неверно». {SESSION} карточек в раунде.</p>
       <SwipeDeck
         cards={cards}
         leftLabel="Неверно"

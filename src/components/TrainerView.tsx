@@ -7,6 +7,11 @@ import type { CalcTask } from '@/content/types';
 import { fmtNum } from './calculator/format';
 import { metricize } from './MetricTag';
 
+// «%» — слитно с числом, именованные единицы — через пробел, безразмерное — без хвоста.
+function withUnit(n: number, unit: string): string {
+  return fmtNum(n, 2) + (unit === '%' ? '%' : unit ? ` ${unit}` : '');
+}
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -130,7 +135,7 @@ export default function TrainerView() {
                 disabled={sel !== null}
                 className={`p-3 rounded-lg border text-sm font-medium tabular-nums transition-all ${cls} ${sel === null ? 'cursor-pointer' : 'cursor-default'}`}
               >
-                {fmtNum(opt, 2)} {task.unit}
+                {withUnit(opt, task.unit)}
               </button>
             );
           })}
