@@ -3,6 +3,7 @@
   "short_name": "Юнит-эконом",
   "description": "Курс по юнит-экономике на двух робо-кейсах (роверы + RaaS) с живым калькулятором.",
   "lang": "ru",
+  "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
