@@ -1,7 +1,9 @@
 'use client';
 
+import { useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useCourse } from '@/context/CourseContext';
+import { buildRecommendations } from '@/content/recommendations';
 import AuthPanel from './AuthPanel';
 
 const fade = {
@@ -33,7 +35,8 @@ interface Tile {
 }
 
 export default function Hub() {
-  const { setView, setCurrentModule, completedModules, totalModules, attempts, examPassed, diagnostic } = useCourse();
+  const { setView, setCurrentModule, completedModules, totalModules, attempts, examPassed, diagnostic, setTrainerTopic } =
+    useCourse();
   const reduced = useReducedMotion();
 
   const go = (v: Tile['view'] | 'cheatsheet') => {
@@ -41,7 +44,18 @@ export default function Hub() {
     setView(v);
   };
 
+  const goModule = (m: number) => {
+    setCurrentModule(m);
+    setView('course');
+  };
+
+  const goTrainer = (topic: string) => {
+    setTrainerTopic(topic);
+    setView('trainer');
+  };
+
   const solved = attempts.length;
+  const rec = useMemo(() => buildRecommendations(diagnostic), [diagnostic]);
 
   const tiles: Tile[] = [
     {
@@ -90,6 +104,58 @@ export default function Hub() {
       </motion.div>
 
       <AuthPanel />
+
+      {rec.modules.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.4 }}
+          className="rounded-2xl border border-accent/30 bg-accent/5 p-5 mb-6"
+        >
+          <div className="flex items-baseline justify-between gap-3 mb-3">
+            <div className="font-semibold text-sm">План по итогам диагностики</div>
+            <div className="text-xs text-muted-foreground whitespace-nowrap">
+              знаешь {rec.knownCount} из {rec.total}
+            </div>
+          </div>
+          <div className="space-y-1 mb-3">
+            {rec.modules.map((g) => (
+              <button
+                key={g.module}
+                onClick={() => goModule(g.module)}
+                className="w-full text-left flex items-center gap-2.5 rounded-lg px-2 py-1.5 -mx-2 hover:bg-accent/10 transition-colors cursor-pointer"
+              >
+                <span
+                  className={`w-6 h-6 flex items-center justify-center rounded-full text-[11px] font-semibold flex-shrink-0 ${
+                    completedModules.has(g.module) ? 'bg-success/15 text-success' : 'bg-accent/15 text-accent'
+                  }`}
+                >
+                  {completedModules.has(g.module) ? '✓' : g.module}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium truncate">{g.title}</span>
+                  <span className="block text-xs text-muted-foreground truncate">{g.topics.join(' · ')}</span>
+                </span>
+                <span className="text-accent text-xs flex-shrink-0">→</span>
+              </button>
+            ))}
+          </div>
+          {rec.trainerTopics.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-accent/15">
+              <span className="text-xs text-muted-foreground mr-1">Нарешать в тренажёре:</span>
+              {rec.trainerTopics.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => goTrainer(t)}
+                  className="px-2.5 py-1 rounded-md border border-accent/40 bg-card text-accent text-xs font-medium hover:bg-accent/10 transition-colors cursor-pointer"
+                >
+                  ⚡ {t}
+                </button>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      )}
 
       <div className="grid sm:grid-cols-2 gap-3">
         {tiles.map((t, i) => (

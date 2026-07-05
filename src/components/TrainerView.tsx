@@ -22,10 +22,9 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 export default function TrainerView() {
-  const { setView, recordAttempt } = useCourse();
+  const { setView, recordAttempt, trainerTopic, setTrainerTopic } = useCourse();
   const [tasks, setTasks] = useState<CalcTask[]>([]);
   const [failed, setFailed] = useState(false);
-  const [topic, setTopic] = useState('all');
   const [i, setI] = useState(0);
   const [sel, setSel] = useState<number | null>(null);
   const [hintLevel, setHintLevel] = useState(0);
@@ -40,6 +39,8 @@ export default function TrainerView() {
   }, []);
 
   const topics = useMemo(() => ['all', ...Array.from(new Set(tasks.map((t) => t.topic)))], [tasks]);
+  // Тема приходит из контекста (deep-link из рекомендаций); незнакомая → 'all'.
+  const topic = topics.includes(trainerTopic) ? trainerTopic : 'all';
   const filtered = useMemo(() => (topic === 'all' ? tasks : tasks.filter((t) => t.topic === topic)), [tasks, topic]);
   const task = filtered.length ? filtered[i % filtered.length] : undefined;
 
@@ -80,7 +81,7 @@ export default function TrainerView() {
           <select
             value={topic}
             onChange={(e) => {
-              setTopic(e.target.value);
+              setTrainerTopic(e.target.value);
               setI(0);
               setSel(null);
             }}

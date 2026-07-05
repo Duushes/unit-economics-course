@@ -51,6 +51,10 @@ interface CourseContextType extends CourseState {
   getAnswer: <T>(key: string) => T | undefined;
   recordAttempt: (topic: string, correct: boolean) => void;
   setDiagnostic: (result: Record<string, 'know' | 'dont'>) => void;
+  // Фильтр темы тренажёра ('all' | тема из calc.json) — для deep-link из
+  // рекомендаций диагностики. Живёт в памяти, не персистится.
+  trainerTopic: string;
+  setTrainerTopic: (topic: string) => void;
   progress: number;
   totalModules: number;
   examPassed: boolean;
@@ -174,6 +178,7 @@ export function CourseProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [trainerTopic, setTrainerTopic] = useState('all');
   const pushTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -346,6 +351,8 @@ export function CourseProvider({ children }: { children: ReactNode }) {
         getAnswer,
         recordAttempt,
         setDiagnostic,
+        trainerTopic,
+        setTrainerTopic,
         progress,
         totalModules: TOTAL_MODULES,
         examPassed,
