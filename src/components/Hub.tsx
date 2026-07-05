@@ -1,6 +1,6 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useCourse } from '@/context/CourseContext';
 import AuthPanel from './AuthPanel';
 
@@ -9,18 +9,34 @@ const fade = {
   show: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.05, duration: 0.4 } }),
 };
 
+// Иконка «рисуется» при появлении…
+const draw = {
+  hidden: { pathLength: 0, opacity: 0 },
+  show: (i: number) => ({
+    pathLength: 1,
+    opacity: 1,
+    transition: { delay: 0.25 + i * 0.09, duration: 0.7, ease: 'easeInOut' as const },
+  }),
+};
+
+// …а при ховере плитки подпрыгивает (variant прокидывается с кнопки).
+const iconHover = {
+  hover: { scale: 1.18, rotate: -6, transition: { type: 'spring' as const, stiffness: 320, damping: 12 } },
+};
+
 interface Tile {
-  view: 'diagnostic' | 'course' | 'trainer' | 'tinder' | 'stats' | 'cheatsheet';
+  view: 'diagnostic' | 'course' | 'trainer' | 'tinder' | 'stats';
   title: string;
   desc: string;
-  icon: React.ReactNode;
+  d: string; // path иконки
   accent?: boolean;
 }
 
 export default function Hub() {
   const { setView, setCurrentModule, completedModules, totalModules, attempts, examPassed, diagnostic } = useCourse();
+  const reduced = useReducedMotion();
 
-  const go = (v: Tile['view']) => {
+  const go = (v: Tile['view'] | 'cheatsheet') => {
     if (v === 'course') setCurrentModule(0);
     setView(v);
   };
@@ -32,32 +48,32 @@ export default function Hub() {
       view: 'diagnostic',
       title: 'Диагностика',
       desc: diagnostic ? 'Перепройти входной тест' : 'Проверь, что уже знаешь — 2 минуты',
-      icon: <path d="M4 12h4l3 8 4-16 3 8h4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />,
+      d: 'M4 12h4l3 8 4-16 3 8h4',
       accent: !diagnostic,
     },
     {
       view: 'course',
       title: 'Курс',
       desc: `Теория, ${completedModules.size}/${totalModules} модулей`,
-      icon: <path d="M4 5h16v14H4zM4 9h16M9 5v14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinejoin="round" />,
+      d: 'M4 5h16v14H4zM4 9h16M9 5v14',
     },
     {
       view: 'trainer',
       title: 'Тренажёр',
       desc: 'Нарешивай расчёты по разным бизнесам',
-      icon: <path d="M6 3h12v18H6zM9 7h6M9 11h6M9 15h3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />,
+      d: 'M6 3h12v18H6zM9 7h6M9 11h6M9 15h3',
     },
     {
       view: 'tinder',
       title: 'Тиндер',
-      desc: 'Верно / неверно на скорость',
-      icon: <path d="M12 21s-7-4.5-9-9a4 4 0 018-1 4 4 0 018 1c-2 4.5-9 9-9 9z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinejoin="round" />,
+      desc: 'Определения метрик: верно / неверно',
+      d: 'M12 21s-7-4.5-9-9a4 4 0 018-1 4 4 0 018 1c-2 4.5-9 9-9 9z',
     },
     {
       view: 'stats',
       title: 'Статистика',
       desc: solved ? `Решено ${solved} · твой прогресс` : 'Твой прогресс',
-      icon: <path d="M5 20V10M12 20V4M19 20v-7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />,
+      d: 'M5 20V10M12 20V4M19 20v-7',
     },
   ];
 
@@ -83,14 +99,33 @@ export default function Hub() {
             variants={fade}
             initial="hidden"
             animate="show"
+            whileHover="hover"
+            whileTap={{ scale: 0.98 }}
             onClick={() => go(t.view)}
             className={`text-left rounded-2xl border p-5 transition-colors cursor-pointer ${
               t.accent ? 'border-accent/40 bg-accent/5 hover:border-accent' : 'border-border hover:border-accent/50'
             }`}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" className="text-accent mb-3">
-              {t.icon}
-            </svg>
+            <motion.div
+              className="inline-block mb-3"
+              animate={t.accent && !reduced ? { scale: [1, 1.09, 1] } : undefined}
+              transition={{ repeat: Infinity, duration: 2.4, ease: 'easeInOut' }}
+            >
+              <motion.svg width="26" height="26" viewBox="0 0 24 24" className="text-accent block" variants={iconHover}>
+                <motion.path
+                  d={t.d}
+                  custom={i}
+                  variants={draw}
+                  initial="hidden"
+                  animate="show"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </motion.svg>
+            </motion.div>
             <div className="font-semibold">{t.title}</div>
             <div className="text-sm text-muted-foreground mt-0.5">{t.desc}</div>
           </motion.button>
@@ -101,7 +136,9 @@ export default function Hub() {
           variants={fade}
           initial="hidden"
           animate="show"
-          onClick={() => examPassed && setView('cheatsheet')}
+          whileHover={examPassed ? 'hover' : undefined}
+          whileTap={examPassed ? { scale: 0.98 } : undefined}
+          onClick={() => examPassed && go('cheatsheet')}
           disabled={!examPassed}
           className={`text-left rounded-2xl border p-5 transition-colors ${
             examPassed
@@ -109,9 +146,20 @@ export default function Hub() {
               : 'border-border/50 opacity-60 cursor-not-allowed'
           }`}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" className="text-accent mb-3">
-            <path d="M6 4h9l3 3v13H6zM15 4v3h3M9 12h6M9 16h4" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+          <motion.svg width="26" height="26" viewBox="0 0 24 24" className="text-accent block mb-3" variants={iconHover}>
+            <motion.path
+              d="M6 4h9l3 3v13H6zM15 4v3h3M9 12h6M9 16h4"
+              custom={5}
+              variants={draw}
+              initial="hidden"
+              animate="show"
+              stroke="currentColor"
+              strokeWidth={2}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </motion.svg>
           <div className="font-semibold">Шпаргалка {examPassed ? '' : '🔒'}</div>
           <div className="text-sm text-muted-foreground mt-0.5">
             {examPassed ? 'Все формулы и правила на одном экране' : 'Откроется после сдачи экзамена'}

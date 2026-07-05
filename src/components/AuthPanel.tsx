@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useCourse } from '@/context/CourseContext';
 
 // UX простого логина: пользователь вводит логин+пароль, под капотом логин
@@ -13,6 +14,7 @@ const LOGIN_RE = /^[a-z0-9_.-]{3,24}$/i;
 
 export default function AuthPanel() {
   const { authEnabled, user, authError, signIn, signUp, signOut } = useCourse();
+  const reduced = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'in' | 'up'>('in');
   const [login, setLogin] = useState('');
@@ -58,12 +60,50 @@ export default function AuthPanel() {
 
   if (!open) {
     return (
-      <button
+      <motion.button
         onClick={() => setOpen(true)}
-        className="w-full rounded-xl border border-border hover:border-accent/50 px-4 py-2.5 mb-6 text-sm text-left text-muted-foreground transition-colors cursor-pointer"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.99 }}
+        className="w-full flex items-center gap-4 rounded-2xl border-2 border-accent/50 bg-gradient-to-r from-accent/10 via-accent/5 to-transparent px-5 py-4 mb-6 text-left cursor-pointer hover:border-accent transition-colors"
       >
-        Войти, чтобы сохранять прогресс между устройствами →
-      </button>
+        <motion.span
+          className="flex-shrink-0 w-11 h-11 rounded-full bg-accent/15 flex items-center justify-center"
+          animate={reduced ? undefined : { y: [0, -3, 0] }}
+          transition={{ repeat: Infinity, duration: 2.6, ease: 'easeInOut' }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="text-accent">
+            <path
+              d="M7 15.5a4 4 0 01-.6-7.96A5.5 5.5 0 0117.6 7 4.2 4.2 0 0117 15.4"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M12 20.5V12M8.8 15.2L12 12l3.2 3.2"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </motion.span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-semibold">Сохраняй прогресс в облаке</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">
+            Логин и пароль — без почты. Продолжай с любого устройства.
+          </span>
+        </span>
+        <motion.span
+          className="text-accent text-xl flex-shrink-0"
+          animate={reduced ? undefined : { x: [0, 5, 0] }}
+          transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
+        >
+          →
+        </motion.span>
+      </motion.button>
     );
   }
 
