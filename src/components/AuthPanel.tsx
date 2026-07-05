@@ -5,7 +5,8 @@ import { useCourse } from '@/context/CourseContext';
 
 // UX простого логина: пользователь вводит логин+пароль, под капотом логин
 // превращается в служебный email для Supabase (почта нигде не показывается).
-const LOGIN_DOMAIN = 'uecon.local';
+// Домен должен резолвиться (GoTrue проверяет DNS) — используем наш Pages-домен.
+const LOGIN_DOMAIN = 'duushes.github.io';
 const toEmail = (login: string) => `${login.trim().toLowerCase()}@${LOGIN_DOMAIN}`;
 const fromEmail = (email: string) => email.split('@')[0];
 const LOGIN_RE = /^[a-z0-9_.-]{3,24}$/i;
