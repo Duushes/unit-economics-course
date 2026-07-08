@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import SwipeDeck from './SwipeDeck';
 import { useCourse } from '@/context/CourseContext';
@@ -8,9 +8,36 @@ import type { TinderCard } from '@/content/types';
 
 const SESSION = 20;
 
+// Темы базового банка курса (канон диагностики/статистики). Остальные темы
+// банка — «Общая юнит-экономика» (retention, подписки, воронка, маркетинг…).
+const COURSE_TOPICS = new Set([
+  'Две парадигмы', 'Выбор юнита', 'Уровни модели', 'Доходы', 'Косты и CM',
+  'CPO', 'Модель Красинского', 'Конверсия C1', 'CAC', 'LTV / payback',
+  'Сходимость', 'Рычаги', 'Масштаб',
+]);
+
+type Filter = 'all' | 'course' | 'general' | `t:${string}`;
+
+function matches(card: TinderCard, filter: Filter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'course') return COURSE_TOPICS.has(card.topic);
+  if (filter === 'general') return !COURSE_TOPICS.has(card.topic);
+  return card.topic === filter.slice(2);
+}
+
+function deal(bank: TinderCard[], filter: Filter): TinderCard[] {
+  return bank
+    .filter((c) => matches(c, filter))
+    .sort(() => Math.random() - 0.5)
+    .slice(0, SESSION);
+}
+
 export default function TinderView() {
   const { setView, recordAttempt } = useCourse();
+  const [bank, setBank] = useState<TinderCard[]>([]);
   const [cards, setCards] = useState<TinderCard[]>([]);
+  const [filter, setFilter] = useState<Filter>('all');
+  const [round, setRound] = useState(0);
   const [failed, setFailed] = useState(false);
   const [done, setDone] = useState(false);
   const [rightN, setRightN] = useState(0);
@@ -22,11 +49,34 @@ export default function TinderView() {
     fetch('trainer/tinder.json')
       .then((r) => r.json())
       .then((d: TinderCard[]) => {
-        const a = [...d].sort(() => Math.random() - 0.5).slice(0, SESSION);
-        setCards(a);
+        setBank(d);
+        setCards(deal(d, 'all'));
       })
       .catch(() => setFailed(true));
   }, []);
+
+  const topics = useMemo(() => {
+    const all = Array.from(new Set(bank.map((c) => c.topic)));
+    return {
+      course: all.filter((t) => COURSE_TOPICS.has(t)).sort((a, b) => a.localeCompare(b, 'ru')),
+      general: all.filter((t) => !COURSE_TOPICS.has(t)).sort((a, b) => a.localeCompare(b, 'ru')),
+    };
+  }, [bank]);
+
+  const restart = (f: Filter = filter) => {
+    rightRef.current = 0;
+    wrongRef.current = [];
+    setDone(false);
+    setRightN(0);
+    setWrong([]);
+    setCards(deal(bank, f));
+    setRound((r) => r + 1);
+  };
+
+  const changeFilter = (f: Filter) => {
+    setFilter(f);
+    restart(f);
+  };
 
   const onSwipe = (card: TinderCard, dir: 'left' | 'right') => {
     const answeredTrue = dir === 'right';
@@ -42,17 +92,6 @@ export default function TinderView() {
     setDone(true);
   };
 
-  const restart = () => {
-    rightRef.current = 0;
-    wrongRef.current = [];
-    setDone(false);
-    setRightN(0);
-    setWrong([]);
-    fetch('trainer/tinder.json')
-      .then((r) => r.json())
-      .then((d: TinderCard[]) => setCards([...d].sort(() => Math.random() - 0.5).slice(0, SESSION)));
-  };
-
   if (failed) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-24 text-center">
@@ -62,9 +101,31 @@ export default function TinderView() {
     );
   }
 
-  if (!cards.length) {
+  if (!bank.length) {
     return <div className="max-w-2xl mx-auto px-6 py-24 text-center text-muted-foreground">Загружаем карточки…</div>;
   }
+
+  const filterSelect = (
+    <select
+      value={filter}
+      onChange={(e) => changeFilter(e.target.value as Filter)}
+      className="bg-card border border-border rounded-lg px-2 py-1 text-xs cursor-pointer"
+    >
+      <option value="all">Все темы</option>
+      <option value="course">База курса</option>
+      <option value="general">Общая юнит-экономика</option>
+      <optgroup label="База курса">
+        {topics.course.map((t) => (
+          <option key={t} value={`t:${t}`}>{t}</option>
+        ))}
+      </optgroup>
+      <optgroup label="Общая юнит-экономика">
+        {topics.general.map((t) => (
+          <option key={t} value={`t:${t}`}>{t}</option>
+        ))}
+      </optgroup>
+    </select>
+  );
 
   if (done) {
     return (
@@ -86,7 +147,7 @@ export default function TinderView() {
             </div>
           )}
           <div className="flex gap-3">
-            <button onClick={restart} className="px-5 py-2.5 bg-accent text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity cursor-pointer">
+            <button onClick={() => restart()} className="px-5 py-2.5 bg-accent text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity cursor-pointer">
               Ещё раунд
             </button>
             <button onClick={() => setView('hub')} className="px-5 py-2.5 bg-muted text-foreground text-sm rounded-lg hover:bg-card-hover transition-colors cursor-pointer">
@@ -100,20 +161,33 @@ export default function TinderView() {
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-10">
-      <h1 className="text-xl font-bold mb-1">Тиндер · верно или неверно</h1>
-      <p className="text-muted-foreground text-sm mb-8">Определения и смысл метрик юнит-экономики. Свайп вправо — «Верно», влево — «Неверно». {SESSION} карточек в раунде.</p>
-      <SwipeDeck
-        cards={cards}
-        leftLabel="Неверно"
-        rightLabel="Верно"
-        onSwipe={onSwipe}
-        onDone={onDone}
-        renderCard={(c) => (
-          <div className="h-full flex items-center">
-            <p className="text-lg font-medium leading-snug">{c.statement}</p>
-          </div>
-        )}
-      />
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+        <h1 className="text-xl font-bold">Тиндер · верно или неверно</h1>
+        {filterSelect}
+      </div>
+      <p className="text-muted-foreground text-sm mb-8">
+        Определения и смысл метрик: база курса + общая юнит-экономика. Свайп вправо — «Верно», влево — «Неверно». До {SESSION} карточек в раунде.
+      </p>
+      {cards.length === 0 ? (
+        <p className="text-center text-muted-foreground py-12">В этой теме пока нет карточек.</p>
+      ) : (
+        <SwipeDeck
+          key={round}
+          cards={cards}
+          leftLabel="Неверно"
+          rightLabel="Верно"
+          onSwipe={onSwipe}
+          onDone={onDone}
+          renderCard={(c) => (
+            <div className="h-full flex flex-col">
+              <span className="text-[11px] px-2 py-0.5 rounded-md bg-accent/10 text-accent font-medium self-start mb-2">{c.topic}</span>
+              <div className="flex-1 flex items-center">
+                <p className="text-lg font-medium leading-snug">{c.statement}</p>
+              </div>
+            </div>
+          )}
+        />
+      )}
     </div>
   );
 }

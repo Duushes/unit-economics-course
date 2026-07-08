@@ -63,8 +63,8 @@ describe('calc task generator', () => {
 describe('tinder card generator (банк определений)', () => {
   const cards = generateTinderCards();
 
-  it('yields at least 100 unique definition cards', () => {
-    expect(cards.length).toBeGreaterThanOrEqual(100);
+  it('yields at least 1000 unique definition cards (база курса + общая ЮЭ)', () => {
+    expect(cards.length).toBeGreaterThanOrEqual(1000);
     expect(new Set(cards.map((c) => c.statement)).size).toBe(cards.length);
   });
 
@@ -91,6 +91,18 @@ describe('tinder card generator (банк определений)', () => {
       'Сходимость', 'Рычаги', 'Масштаб',
     ];
     for (const t of canon) expect(topics.has(t), `нет темы «${t}»`).toBe(true);
+  });
+
+  it('covers all general-UE topics with enough cards each', () => {
+    const byTopic = new Map();
+    for (const c of cards) byTopic.set(c.topic, (byTopic.get(c.topic) ?? 0) + 1);
+    const general = [
+      'Retention и churn', 'Подписки: MRR и ARR', 'Воронка и конверсии',
+      'Перформанс-маркетинг', 'E-com и маркетплейсы', 'Когортный анализ',
+      'Маржа и P&L юнита', 'Burn, runway и рост', 'Ценообразование',
+      'DAU, MAU и engagement',
+    ];
+    for (const t of general) expect(byTopic.get(t) ?? 0, `мало карточек в теме «${t}»`).toBeGreaterThanOrEqual(70);
   });
 
   it('contains no calc-style cards (регрессия на «Значит ответ»)', () => {

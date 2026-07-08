@@ -6,6 +6,7 @@ import { useCourse } from '@/context/CourseContext';
 import type { CalcTask } from '@/content/types';
 import { fmtNum } from './calculator/format';
 import { metricize } from './MetricTag';
+import TrainerCalc from './TrainerCalc';
 
 // «%» — слитно с числом, именованные единицы — через пробел, безразмерное — без хвоста.
 function withUnit(n: number, unit: string): string {
@@ -154,6 +155,8 @@ export default function TrainerView() {
           </motion.div>
         )}
       </motion.div>
+
+      <TrainerCalc />
 
       <button onClick={() => setView('hub')} className="mt-6 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
         ← На главную

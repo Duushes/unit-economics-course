@@ -1,6 +1,8 @@
 // Библиотека генерации заданий тренажёра. Используется gen-tasks.mjs и тестами.
 // Детерминированно (seeded PRNG) — один и тот же вход даёт те же задания.
 
+import { GENERAL_DEFINITIONS } from './tinder-definitions-general.mjs';
+
 export function mulberry32(seed) {
   let a = seed;
   return function () {
@@ -387,11 +389,12 @@ const DEFINITIONS = [
 ];
 
 // Тиндер: детерминированно перемешанный банк определений, без дублей и без
-// расчётных карточек. Возвращает min(count, размер банка) карточек.
-export function generateTinderCards(count = DEFINITIONS.length, seed = 54321) {
+// расчётных карточек. База курса (DEFINITIONS) + общая юнит-экономика
+// (GENERAL_DEFINITIONS). Возвращает min(count, размер банка) карточек.
+export function generateTinderCards(count = DEFINITIONS.length + GENERAL_DEFINITIONS.length, seed = 54321) {
   const rng = mulberry32(seed);
   const seen = new Set();
-  const bank = DEFINITIONS.filter((d) => !seen.has(d.t) && seen.add(d.t));
+  const bank = [...DEFINITIONS, ...GENERAL_DEFINITIONS].filter((d) => !seen.has(d.t) && seen.add(d.t));
   for (let i = bank.length - 1; i > 0; i--) {
     const j = Math.floor(rng() * (i + 1));
     [bank[i], bank[j]] = [bank[j], bank[i]];
