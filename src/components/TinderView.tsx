@@ -41,6 +41,8 @@ export default function TinderView() {
   const [failed, setFailed] = useState(false);
   const [done, setDone] = useState(false);
   const [rightN, setRightN] = useState(0);
+  const [idx, setIdx] = useState(0); // номер текущей карточки = число сделанных свайпов
+  const [hintLevel, setHintLevel] = useState(0);
   const rightRef = useRef(0);
   const wrongRef = useRef<TinderCard[]>([]);
   const [wrong, setWrong] = useState<TinderCard[]>([]);
@@ -69,6 +71,8 @@ export default function TinderView() {
     setDone(false);
     setRightN(0);
     setWrong([]);
+    setIdx(0);
+    setHintLevel(0);
     setCards(deal(bank, f));
     setRound((r) => r + 1);
   };
@@ -84,6 +88,8 @@ export default function TinderView() {
     recordAttempt(card.topic, ok);
     if (ok) rightRef.current += 1;
     else wrongRef.current.push(card);
+    setIdx((i) => i + 1);
+    setHintLevel(0);
   };
 
   const onDone = () => {
@@ -166,7 +172,7 @@ export default function TinderView() {
         {filterSelect}
       </div>
       <p className="text-muted-foreground text-sm mb-8">
-        Определения и смысл метрик: база курса + общая юнит-экономика. Свайп вправо — «Верно», влево — «Неверно». До {SESSION} карточек в раунде.
+        Определения и смысл метрик: база курса + общая юнит-экономика. Свайп вправо — «Верно», влево — «Неверно». До {SESSION} карточек в раунде. Застрял — открой подсказки: L1 намекает, L2 напоминает правило, L3 почти отвечает.
       </p>
       {cards.length === 0 ? (
         <p className="text-center text-muted-foreground py-12">В этой теме пока нет карточек.</p>
@@ -178,6 +184,34 @@ export default function TinderView() {
           rightLabel="Верно"
           onSwipe={onSwipe}
           onDone={onDone}
+          belowDeck={(() => {
+            const hints = cards[idx]?.hints;
+            if (!hints?.length) return null;
+            return (
+              <div className="mt-4">
+                {hintLevel > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {hints.slice(0, hintLevel).map((h, i) => (
+                      <div key={i} className="flex gap-2 text-sm rounded-lg bg-accent/5 border border-accent/20 p-2.5">
+                        <span className="text-[11px] font-bold text-accent mt-0.5">L{i + 1}</span>
+                        <span className="flex-1">{h}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {hintLevel < hints.length && (
+                  <div className="text-center">
+                    <button
+                      onClick={() => setHintLevel((l) => l + 1)}
+                      className="text-xs text-accent hover:underline underline-offset-2 cursor-pointer"
+                    >
+                      💡 {hintLevel === 0 ? 'Показать подсказку' : `Ещё подсказка (L${hintLevel + 1} из ${hints.length})`}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
           renderCard={(c) => (
             <div className="h-full flex flex-col">
               <span className="text-[11px] px-2 py-0.5 rounded-md bg-accent/10 text-accent font-medium self-start mb-2">{c.topic}</span>

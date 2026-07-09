@@ -2,6 +2,7 @@
 // Детерминированно (seeded PRNG) — один и тот же вход даёт те же задания.
 
 import { GENERAL_DEFINITIONS } from './tinder-definitions-general.mjs';
+import { TINDER_HINTS } from './tinder-hints.mjs';
 
 export function mulberry32(seed) {
   let a = seed;
@@ -391,6 +392,8 @@ const DEFINITIONS = [
 // Тиндер: детерминированно перемешанный банк определений, без дублей и без
 // расчётных карточек. База курса (DEFINITIONS) + общая юнит-экономика
 // (GENERAL_DEFINITIONS). Возвращает min(count, размер банка) карточек.
+// Подсказки L1→L2→L3 подшиваются из TINDER_HINTS по тексту утверждения
+// (см. Tinder_Hints_PROMPT.md); новая карточка банка обязана получить запись там.
 export function generateTinderCards(count = DEFINITIONS.length + GENERAL_DEFINITIONS.length, seed = 54321) {
   const rng = mulberry32(seed);
   const seen = new Set();
@@ -405,5 +408,6 @@ export function generateTinderCards(count = DEFINITIONS.length + GENERAL_DEFINIT
     isCorrect: d.ok,
     topic: d.topic,
     explain: d.why,
+    hints: TINDER_HINTS[d.t],
   }));
 }

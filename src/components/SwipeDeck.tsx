@@ -15,6 +15,7 @@ interface Props<T extends DeckCard> {
   onSwipe: (card: T, dir: 'left' | 'right') => void;
   onDone?: () => void;
   doneNode?: React.ReactNode;
+  belowDeck?: React.ReactNode; // рендерится между колодой и кнопками (подсказки и т.п.)
 }
 
 export default function SwipeDeck<T extends DeckCard>({
@@ -25,6 +26,7 @@ export default function SwipeDeck<T extends DeckCard>({
   onSwipe,
   onDone,
   doneNode,
+  belowDeck,
 }: Props<T>) {
   const [index, setIndex] = useState(0);
   const x = useMotionValue(0);
@@ -98,6 +100,8 @@ export default function SwipeDeck<T extends DeckCard>({
           </div>
         </motion.div>
       </div>
+
+      {belowDeck}
 
       <div className="flex justify-center gap-4 mt-5">
         <button

@@ -96,4 +96,5 @@ export interface TinderCard {
   isCorrect: boolean;
   topic: string;
   explain: string;
+  hints?: string[]; // L1 → L2 → L3 (намёк → правило → сопоставление), вердикт не выдают
 }
